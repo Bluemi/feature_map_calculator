@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 
 
@@ -16,9 +18,9 @@ def int_to_size(n):
     return n
 
 
-def summarize_modules(modules):
+def summarize_descriptions(descriptions):
     lines = []
-    name_length = max(max(len(m.desc.get('name', '')) for m in modules) + 3, 7)
+    name_length = max(max(len(d.get('name', '')) for d in descriptions) + 3, 7)
 
     desc_name = 'DESCRIPTION'
     prop_name = 'LAYER'
@@ -27,13 +29,13 @@ def summarize_modules(modules):
     num_ops = 'NUM OPS'
     lines.append(f'{prop_name:<{name_length}} {desc_name:<30} {output_shape:<20} {num_weights:<13} {num_ops:<10}')
     lines.append('-' * len(lines[0]))
-    for module in modules:
-        prop_name = str(module.desc.get('name', ''))
-        desc = str(module.desc.get('desc', ''))
-        output_shape = str(module.desc.get('output_shape', ''))
-        num_weights = str(module.desc.get('num_weights', ''))
-        num_ops = str(module.desc.get('num_ops', ''))
-        lines.append(f'{prop_name:<{name_length}} {desc:<30} {output_shape:<20} {num_weights:<13} {num_ops:<10}')
+    for desc in descriptions:
+        prop_name = str(desc.get('name', ''))
+        description = str(desc.get('desc', ''))
+        output_shape = str(desc.get('output_shape', ''))
+        num_weights = str(desc.get('num_weights', ''))
+        num_ops = str(desc.get('num_ops', ''))
+        lines.append(f'{prop_name:<{name_length}} {description:<30} {output_shape:<20} {num_weights:<13} {num_ops:<10}')
     return '\n'.join(lines)
 
 
@@ -47,18 +49,9 @@ class Module:
     def __call__(self, x):
         return self.forward(x)
 
-    def get_submodules(self):
-        submodules = {}
-        for prop_name, value in vars(self).items():
-            if type(value) in (Conv2d, Linear, MaxPool2d):
-                submodules[prop_name] = value
-        return submodules
-
     def summary(self, x):
         output = self(x)
-        for name, submodule in self.get_submodules().items():
-            submodule.desc['name'] = name
-        return summarize_modules(output.history)
+        return summarize_descriptions(output.history)
 
 
 class Conv2d:
@@ -71,7 +64,7 @@ class Conv2d:
         self.bias = bias
 
         self.desc = {
-            'desc': f'Conv {self.kernel_size[0]}x{self.kernel_size[1]} in={self.in_channels} out={self.out_channels}',
+            'desc': f'{self.kernel_size[0]}x{self.kernel_size[1]} in={self.in_channels} out={self.out_channels}',
             'name': 'Conv2d'
         }
 
@@ -95,7 +88,7 @@ class Conv2d:
         self.desc['num_weights'] = (np.prod(self.kernel_size) * self.in_channels + int(self.bias)) * self.out_channels
         self.desc['num_ops'] = np.prod(output_shape[1:]) * self.in_channels * np.prod(self.kernel_size)
 
-        return Tensor(output_shape, history=x.history + [self])
+        return Tensor(output_shape, history=x.history + [copy.deepcopy(self.desc)])
 
 
 class MaxPool2d:
@@ -107,7 +100,7 @@ class MaxPool2d:
         self.padding = int_to_size(padding)
 
         self.desc = {
-            'desc': f'MaxPool {self.kernel_size[0]}x{self.kernel_size[1]} stride={self.stride}',
+            'desc': f'{self.kernel_size[0]}x{self.kernel_size[1]} stride={self.stride}',
             'name': 'MaxPool2d'
         }
 
@@ -126,7 +119,7 @@ class MaxPool2d:
 
         self.desc['output_shape'] = output_shape
         self.desc['num_ops'] = np.prod(output_shape[1:]) * np.prod(self.kernel_size)
-        return Tensor(output_shape, history=x.history + [self])
+        return Tensor(output_shape, history=x.history + [copy.deepcopy(self.desc)])
 
 
 class Linear:
@@ -136,7 +129,7 @@ class Linear:
         self.bias = bias
 
         self.desc = {
-            'desc': f'Linear {self.in_features} -> {self.out_features}',
+            'desc': f'{self.in_features} -> {self.out_features}',
             'name': 'Linear'
         }
 
@@ -157,7 +150,7 @@ class Linear:
         self.desc['num_weights'] = (self.in_features + int(self.bias)) * self.out_features
         self.desc['num_ops'] = (self.in_features + int(self.bias)) * self.out_features
 
-        return Tensor(new_shape, history=x.history + [self])
+        return Tensor(new_shape, history=x.history + [copy.deepcopy(self.desc)])
 
 
 class Flatten:

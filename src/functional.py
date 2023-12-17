@@ -8,7 +8,7 @@ def relu(x):
     tmp_layer = ReLU()
     tmp_layer.desc['output_shape'] = x.shape
     tmp_layer.desc['name'] = 'ReLU'
-    return Tensor(x.shape, history=x.history + [tmp_layer])
+    return Tensor(x.shape, history=x.history + [tmp_layer.desc])
 
 
 def flatten(x, start_dim=0):
@@ -20,4 +20,4 @@ def flatten(x, start_dim=0):
     tmp_layer = Flatten()
     tmp_layer.desc['output_shape'] = output_shape
     tmp_layer.desc['name'] = 'Flatten'
-    return Tensor(output_shape, history=x.history + [tmp_layer])
+    return Tensor(output_shape, history=x.history + [tmp_layer.desc])
