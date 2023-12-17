@@ -5,7 +5,7 @@ from nn import Tensor
 def main():
     net = Net()
 
-    input_data = Tensor((8, 3, 32, 32))
+    input_data = Tensor((8, 1, 28, 28))
 
     print(net.summary(input_data))
 
